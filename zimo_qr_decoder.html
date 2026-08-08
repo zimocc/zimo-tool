@@ -362,6 +362,12 @@ body {
   resize: vertical;
   outline: none;
   box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.result-textarea:hover:not(:placeholder-shown) {
+  border-color: var(--btn-action);
 }
 
 .result-textarea:focus {
@@ -626,7 +632,7 @@ footer {
           </div>
           <span class="status-badge status-idle" id="status-badge">等待选择图片</span>
         </div>
-        <textarea class="result-textarea" id="result-text" placeholder="暂无解析结果，请先上传、拖拽或粘贴二维码图片..." readonly></textarea>
+        <textarea class="result-textarea" id="result-text" placeholder="暂无解析结果，请先上传、拖拽或粘贴二维码图片..." title="点击可直接复制识别文本内容" readonly></textarea>
       </div>
 
       <!-- History List Section -->
@@ -11115,6 +11121,13 @@ document.addEventListener("DOMContentLoaded", () => {
     if (currentDecodedResult) {
       navigator.clipboard.writeText(currentDecodedResult);
       showToast("文本已成功复制到剪贴板！");
+    }
+  });
+
+  resultTextarea.addEventListener("click", () => {
+    if (resultTextarea.value.trim()) {
+      navigator.clipboard.writeText(resultTextarea.value);
+      showToast("识别文本已成功复制到剪贴板！");
     }
   });
 
