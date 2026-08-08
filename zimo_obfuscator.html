@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>紫陌图片混淆 _ 解混淆工具 (单文件独立版)</title>
+  <meta name="description" content="紫陌图片混淆工具 - 基于空间填充曲线（Gilbert Curve）的在线图片混淆/解混淆工具，纯前端处理保护隐私，支持多次混淆与还原。">
+  <link rel="icon" type="image/png" href="images/logo.png">
+  <style>
+/* 
+ * 紫陌图片混淆 - abc.zimo.cc 风格样式表 (Neo-brutalism / Cute 3D Design)
+ */
+
+:root {
+  --font-sans: "PingFang SC", "Microsoft YaHei", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  /* abc.zimo.cc Palette */
+  --bg-color: #f0faff;
+  --dot-color: #d1edfc;
+  --border-color: #3d405b;
+  --card-bg: #ffffff;
+  --text-main: #3d405b;
+  --text-muted: #636e72;
+
+  --btn-primary: #74b9ff;
+  --btn-action: #a29bfe;
+  --btn-secondary: #a8e6cf;
+  --btn-warning: #ffeaa7;
+  --btn-danger: #ff7675;
+  --btn-success: #55efc4;
+}
+
+.dark {
+  --bg-color: #0f172a;
+  --dot-color: #1e293b;
+  --border-color: #475569;
+  --card-bg: #1e293b;
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+
+  --btn-primary: #3b82f6;
+  --btn-action: #8b5cf6;
+  --btn-secondary: #0d9488;
+  --btn-warning: #d97706;
+  --btn-danger: #ef4444;
+  --btn-success: #10b981;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--bg-color);
+  background-image: radial-gradient(var(--dot-color) 20%, transparent 20%), radial-gradient(var(--dot-color) 20%, transparent 20%);
+  background-position: 0 0, 25px 25px;
+  background-size: 50px 50px;
+  color: var(--text-main);
+  line-height: 1.5;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px 16px;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+/* Header & Brand Banner */
+.brand-header {
+  width: 100%;
+  max-width: 720px;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.brand-badge {
+  background-color: var(--btn-action);
+  color: #ffffff;
+  text-shadow: 1px 1px var(--border-color);
+  border: 4px solid var(--border-color);
+  border-radius: 16px;
+  box-shadow: 0 5px var(--border-color);
+  padding: 8px 20px;
+  font-size: 1.25rem;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  letter-spacing: -0.01em;
+}
+
+.theme-toggle-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background-color: var(--card-bg);
+  border: 4px solid var(--border-color);
+  box-shadow: 0 5px var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-main);
+  cursor: pointer;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+.theme-toggle-btn:active {
+  transform: translateY(4px);
+  box-shadow: 0 1px var(--border-color);
+}
+
+/* Main Card Container */
+.main-app-container {
+  width: 100%;
+  max-width: 720px;
+}
+
+.cute-card {
+  background-color: var(--card-bg);
+  border: 4px solid var(--border-color);
+  border-radius: 24px;
+  box-shadow: 0 8px var(--border-color);
+  padding: 24px;
+  margin-bottom: 40px;
+  transition: border-color 0.2s, background-color 0.2s;
+}
+
+.cute-card.drag-over {
+  border-color: var(--btn-action) !important;
+  background-color: color-mix(in srgb, var(--card-bg) 80%, var(--btn-action) 20%) !important;
+}
+
+.xfq-tip {
+  background-color: #fffbdf;
+  border: 3px dashed #f39c12;
+  border-radius: 14px;
+  color: #d35400;
+  padding: 12px 16px;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.6;
+  margin-bottom: 20px;
+}
+
+.dark .xfq-tip {
+  background-color: rgba(217, 119, 6, 0.15);
+  border-color: #f59e0b;
+  color: #fbbf24;
+}
+
+/* Upload Dropzone Placeholder */
+.xfq-image-area {
+  position: relative;
+  margin-bottom: 20px;
+}
+
+.xfq-placeholder {
+  width: 100%;
+  min-height: 260px;
+  border: 4px dashed var(--border-color);
+  border-radius: 20px;
+  background-color: color-mix(in srgb, var(--card-bg) 90%, var(--btn-primary) 10%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-main);
+  cursor: pointer;
+  padding: 32px 20px;
+  gap: 14px;
+  transition: background-color 0.2s, transform 0.15s;
+}
+
+.xfq-placeholder:hover {
+  background-color: color-mix(in srgb, var(--card-bg) 80%, var(--btn-primary) 20%);
+  transform: translateY(-2px);
+}
+
+.xfq-placeholder svg {
+  color: var(--btn-action);
+}
+
+.paste-kbd {
+  display: inline-block;
+  padding: 2px 8px;
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  font-weight: 900;
+  color: var(--text-main);
+  background-color: var(--card-bg);
+  border: 2px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: 1px 2px var(--border-color);
+}
+
+/* Image Result Wrapper */
+#xfq-img-wrapper {
+  border: 4px solid var(--border-color);
+  border-radius: 20px;
+  overflow: hidden;
+  line-height: 0;
+  background: repeating-conic-gradient(#80808020 0% 25%, transparent 0% 50%) 50% / 16px 16px;
+  box-shadow: 0 4px var(--border-color);
+}
+
+#xfq-display-img {
+  width: 100%;
+  max-height: 480px;
+  object-fit: contain;
+  display: block;
+}
+
+/* Loading Overlay */
+#xfq-loading {
+  position: absolute;
+  inset: 0;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background-color: color-mix(in srgb, var(--card-bg) 92%, transparent);
+  border: 4px solid var(--border-color);
+  border-radius: 20px;
+  gap: 12px;
+  color: var(--text-main);
+  font-weight: 900;
+  font-size: 16px;
+  z-index: 20;
+}
+
+#xfq-loading:not([hidden]) {
+  display: flex;
+}
+
+#xfq-loading[hidden],
+#xfq-img-wrapper[hidden],
+#xfq-modal[hidden] {
+  display: none !important;
+}
+
+.xfq-spinner {
+  width: 44px;
+  height: 44px;
+  border: 5px solid var(--border-color);
+  border-left-color: var(--btn-action);
+  border-radius: 50%;
+  animation: xfq-spin 0.8s linear infinite;
+}
+
+@keyframes xfq-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Controls Button Grid */
+.xfq-controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 12px;
+  width: 100%;
+  margin-top: 10px;
+}
+
+.cute-btn {
+  appearance: none;
+  border: 3px solid var(--border-color);
+  border-radius: 14px;
+  height: 46px;
+  padding: 0 12px;
+  font-size: 15px;
+  font-weight: 900;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px var(--border-color);
+  transition: transform 0.08s ease, box-shadow 0.08s ease, opacity 0.15s;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.cute-btn:active:not(:disabled) {
+  transform: translateY(4px);
+  box-shadow: 0 0 var(--border-color) !important;
+}
+
+.cute-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: 0 2px var(--border-color);
+}
+
+/* Button Color Themes */
+.btn-upload {
+  background-color: var(--btn-secondary);
+  color: var(--text-main);
+}
+
+.btn-enc {
+  background-color: var(--btn-action);
+  color: #ffffff;
+  text-shadow: 1px 1px var(--border-color);
+}
+
+.btn-dec {
+  background-color: var(--btn-primary);
+  color: #ffffff;
+  text-shadow: 1px 1px var(--border-color);
+}
+
+.btn-restore {
+  background-color: var(--btn-warning);
+  color: #2d3436;
+}
+
+.btn-download {
+  background-color: var(--btn-success);
+  color: #2d3436;
+}
+
+/* Explanation Cards Section */
+.intro-section {
+  width: 100%;
+  max-width: 720px;
+  margin-top: 20px;
+  margin-bottom: 40px;
+}
+
+.section-title {
+  color: var(--text-main);
+  font-size: 1.5rem;
+  font-weight: 900;
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+.section-subtitle {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  font-weight: 700;
+  text-align: center;
+  max-width: 600px;
+  margin: 0 auto 28px auto;
+  line-height: 1.6;
+}
+
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 16px;
+}
+
+.feature-card {
+  background-color: var(--card-bg);
+  border: 4px solid var(--border-color);
+  border-radius: 20px;
+  box-shadow: 0 6px var(--border-color);
+  padding: 20px 16px;
+  text-align: center;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.feature-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 9px var(--border-color);
+}
+
+.feature-card-1 { background-color: color-mix(in srgb, var(--card-bg) 85%, #ffeaa7 15%); }
+.feature-card-2 { background-color: color-mix(in srgb, var(--card-bg) 85%, #a2f4fd 15%); }
+.feature-card-3 { background-color: color-mix(in srgb, var(--card-bg) 85%, #ffd6a7 15%); }
+.feature-card-4 { background-color: color-mix(in srgb, var(--card-bg) 85%, #a8e6cf 15%); }
+
+.feature-icon {
+  font-size: 2.2rem;
+  margin-bottom: 10px;
+}
+
+.feature-title {
+  font-size: 1rem;
+  font-weight: 900;
+  color: var(--text-main);
+  margin-bottom: 6px;
+}
+
+.feature-desc {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+  </style>
+  <script>
+    (function() {
+      const theme = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      if (theme === 'dark') document.documentElement.classList.add('dark');
+    })();
+  </script>
+</head>
+<body>
+
+  <!-- Top Brand Header Banner -->
+  <header class="brand-header">
+    <div class="brand-badge">
+      <span>🌸</span>
+      <span>紫陌图片混淆</span>
+    </div>
+    <!-- Dark / Light Theme Toggle Button -->
+    <button id="theme-toggle" class="theme-toggle-btn" aria-label="切换暗夜模式">
+      <svg id="icon-sun" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width: 22px; height: 22px;">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
+      </svg>
+      <svg id="icon-moon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width: 22px; height: 22px;">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
+      </svg>
+    </button>
+  </header>
+
+  <!-- Core Obfuscator Container -->
+  <main class="main-app-container">
+    <div class="cute-card">
+      
+      <!-- 1. Top Action Button Grid (Always visible without scrolling) -->
+      <div class="xfq-controls" style="margin-bottom: 20px; margin-top: 0;">
+        <input type="file" accept="image/*" id="xfq-file" hidden>
+        <button id="xfq-upload" class="cute-btn btn-upload">上传图片</button>
+        <button id="xfq-enc" class="cute-btn btn-enc">混淆</button>
+        <button id="xfq-dec" class="cute-btn btn-dec">解混淆</button>
+        <button id="xfq-restore" class="cute-btn btn-restore">还原</button>
+        <a id="xfq-download" class="cute-btn btn-download" hidden>下载图片</a>
+      </div>
+
+      <!-- 2. Middle Image Display / Dropzone Area -->
+      <div class="xfq-image-area">
+        <!-- File Upload Dropzone / Paste Area -->
+        <div class="xfq-placeholder" id="xfq-placeholder">
+          <svg viewBox="0 0 1110 1024" width="48" height="48" aria-hidden="true">
+            <path d="M557 533V826h43V533h290v-43H600V219h-43v271H267v43z" fill="currentColor"></path>
+          </svg>
+          <p style="font-size: 15px; text-align: center;">点击此处上传图片、拖拽图片至此，或直接 <kbd class="paste-kbd">Ctrl + V</kbd> 粘贴图片</p>
+        </div>
+
+        <!-- Processed Result Image Container -->
+        <div id="xfq-img-wrapper" hidden>
+          <img id="xfq-display-img" alt="处理后的图片">
+        </div>
+
+        <!-- Loading Overlay -->
+        <div id="xfq-loading" hidden>
+          <div class="xfq-spinner"></div>
+          <p>处理中，请稍候…</p>
+        </div>
+      </div>
+
+      <!-- 3. Bottom Operation Tip Box -->
+      <div class="xfq-tip" style="margin-bottom: 0;">
+        若图片经过多次混淆，需点多次解混淆；若只点了解混淆，则需逆向点混淆才可解开。
+      </div>
+    </div>
+
+    <!-- 4. Explanation Cards Section at Bottom -->
+    <section class="intro-section" id="intro">
+      <h2 class="section-title">紫陌图片混淆科普</h2>
+      <p class="section-subtitle">
+        基于 Gilbert 空间填充曲线的可逆图片置换算法，让图片在视觉上不可识别但仍可一键还原。所有处理都在浏览器本地完成，图片不会上传到服务器，使用更放心。
+      </p>
+      <div class="feature-grid">
+        <div class="feature-card feature-card-1">
+          <div class="feature-icon">🔒</div>
+          <h3 class="feature-title">纯前端处理</h3>
+          <p class="feature-desc">图片处理全部在浏览器内完成，不上传服务器，从源头保护隐私。</p>
+        </div>
+        <div class="feature-card feature-card-2">
+          <div class="feature-icon">🔁</div>
+          <h3 class="feature-title">可逆混淆</h3>
+          <p class="feature-desc">混淆与解混淆使用同一算法，操作可完全互逆，支持多次叠加。</p>
+        </div>
+        <div class="feature-card feature-card-3">
+          <div class="feature-icon">🧮</div>
+          <h3 class="feature-title">Gilbert Curve</h3>
+          <p class="feature-desc">采用空间填充曲线，保留像素邻域相关性，JPEG 压缩后仍可还原。</p>
+        </div>
+        <div class="feature-card feature-card-4">
+          <div class="feature-icon">📥</div>
+          <h3 class="feature-title">一键下载</h3>
+          <p class="feature-desc">处理结果可直接保存为 JPEG（质量 0.95），方便分享与传输。</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+/**
+ * 紫陌图片混淆 - 核心 JavaScript 脚本 (单文件独立版)
+ * 基于 Gilbert Curve (空间填充曲线) 的纯前端图片混淆与解混淆
+ */
+
+// 1. Gilbert Curve (Generalized 2D Hilbert Curve) Algorithm
+function z(t, n) {
+  const e = [];
+  if (t >= n) {
+    p(0, 0, t, 0, 0, n, e);
+  } else {
+    p(0, 0, 0, n, t, 0, e);
+  }
+  return e;
+}
+
+function p(t, n, e, o, c, a, r) {
+  const m = Math.abs(e + o);
+  const l = Math.abs(c + a);
+  const u = Math.sign(e);
+  const d = Math.sign(o);
+  const L = Math.sign(c);
+  const s = Math.sign(a);
+
+  if (l === 1) {
+    for (let M = 0; M < m; M++) {
+      r.push([t, n]);
+      t += u;
+      n += d;
+    }
+    return;
+  }
+  if (m === 1) {
+    for (let M = 0; M < l; M++) {
+      r.push([t, n]);
+      t += L;
+      n += s;
+    }
+    return;
+  }
+
+  let h = Math.floor(e / 2);
+  let g = Math.floor(o / 2);
+  let i = Math.floor(c / 2);
+  let f = Math.floor(a / 2);
+
+  const S = Math.abs(h + g);
+  const _ = Math.abs(i + f);
+
+  if (2 * m > 3 * l) {
+    if (S % 2 && m > 2) {
+      h += u;
+      g += d;
+    }
+    p(t, n, h, g, c, a, r);
+    p(t + h, n + g, e - h, o - g, c, a, r);
+  } else {
+    if (_ % 2 && l > 2) {
+      i += L;
+      f += s;
+    }
+    p(t, n, i, f, h, g, r);
+    p(t + i, n + f, e, o, c - i, a - f, r);
+    p(t + (e - u) + (i - L), n + (o - d) + (f - s), -i, -f, -(e - h), -(o - g), r);
+  }
+}
+
+// 2. Main Application Initialization
+document.addEventListener("DOMContentLoaded", () => {
+  // UI Elements
+  const fileInput = document.getElementById("xfq-file");
+  const uploadBtn = document.getElementById("xfq-upload");
+  const encBtn = document.getElementById("xfq-enc");
+  const decBtn = document.getElementById("xfq-dec");
+  const restoreBtn = document.getElementById("xfq-restore");
+  const downloadBtn = document.getElementById("xfq-download");
+  const placeholder = document.getElementById("xfq-placeholder");
+  const imgWrapper = document.getElementById("xfq-img-wrapper");
+  const displayImg = document.getElementById("xfq-display-img");
+  const loading = document.getElementById("xfq-loading");
+
+  const themeToggle = document.getElementById("theme-toggle");
+  const iconSun = document.getElementById("icon-sun");
+  const iconMoon = document.getElementById("icon-moon");
+
+  // Constants & State
+  const MAX_PIXELS = 8e6; // 8 Million pixels
+  const MAX_WIDTH = 4e3;  // 4000px max width
+  const MAX_HEIGHT = 4e3; // 4000px max height
+
+  let currentBlob = null;
+  let originalBlob = null;
+
+  // Explicitly ensure loading spinner is hidden on page load
+  if (loading) loading.hidden = true;
+
+  // Generate random 4-character hash for filename
+  function getRandomHash() {
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    let now = Date.now();
+    let hash = "";
+    for (let i = 0; i < 4; i++) {
+      hash = chars[now % 62] + hash;
+      now = Math.floor(now / 62);
+    }
+    return hash;
+  }
+
+  // Set Display Image Blob and reset loading visibility
+  function setDisplayImage(blobUrl) {
+    if (displayImg.src && displayImg.src.startsWith("blob:")) {
+      URL.revokeObjectURL(displayImg.src);
+    }
+    displayImg.src = blobUrl;
+    
+    // Show Image Wrapper
+    imgWrapper.hidden = false;
+    imgWrapper.style.display = "block";
+    imgWrapper.style.visibility = "visible";
+
+    // Hide Placeholder
+    placeholder.hidden = true;
+    placeholder.style.display = "none";
+
+    // Show Download Button
+    downloadBtn.hidden = false;
+    downloadBtn.style.display = "inline-flex";
+    downloadBtn.href = blobUrl;
+    downloadBtn.download = `紫陌混淆_${getRandomHash()}.jpg`;
+
+    // Ensure loading spinner is hidden
+    if (loading) {
+      loading.hidden = true;
+      loading.style.display = "none";
+    }
+  }
+
+  // Toggle Loading & Button Lock State
+  function setLoadingState(isLoading) {
+    [uploadBtn, encBtn, decBtn, restoreBtn].forEach(btn => {
+      if (btn) btn.disabled = isLoading;
+    });
+    if (fileInput) fileInput.disabled = isLoading;
+    if (placeholder) placeholder.style.pointerEvents = isLoading ? "none" : "";
+    
+    if (loading) {
+      loading.hidden = !isLoading;
+      loading.style.display = isLoading ? "flex" : "none";
+    }
+    if (imgWrapper && !imgWrapper.hidden) {
+      imgWrapper.style.visibility = isLoading ? "hidden" : "visible";
+    }
+  }
+
+  // Perform Image Obfuscation / De-obfuscation with Uint32Array high-speed copy
+  function processImage(mode) {
+    if (!currentBlob) {
+      alert("请先上传图片");
+      return;
+    }
+    setLoadingState(true);
+
+    // Give browser UI time to render loading overlay
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        const objectUrl = URL.createObjectURL(currentBlob);
+        const img = new Image();
+
+        img.onload = () => {
+          URL.revokeObjectURL(objectUrl);
+          try {
+            const canvas = document.createElement("canvas");
+            const w = canvas.width = img.naturalWidth || img.width;
+            const h = canvas.height = img.naturalHeight || img.height;
+            const ctx = canvas.getContext("2d");
+
+            if (!ctx) throw new Error("Canvas 2D context unavailable");
+
+            ctx.drawImage(img, 0, 0);
+            const srcData = ctx.getImageData(0, 0, w, h);
+            const outData = ctx.createImageData(w, h);
+
+            const curvePoints = z(w, h);
+            const totalPixels = w * h;
+            const shiftL = Math.round(((Math.sqrt(5) - 1) / 2) * totalPixels);
+
+            // Use 32-bit Uint32Array views for 4x-10x performance boost over .slice()
+            const src32 = new Uint32Array(srcData.data.buffer);
+            const dst32 = new Uint32Array(outData.data.buffer);
+
+            if (mode === "enc") {
+              for (let s = 0; s < totalPixels; s++) {
+                const pointH = curvePoints[s];
+                const pointG = curvePoints[(s + shiftL) % totalPixels];
+                const idxH = pointH[0] + pointH[1] * w;
+                const idxG = pointG[0] + pointG[1] * w;
+                dst32[idxG] = src32[idxH];
+              }
+            } else {
+              for (let s = 0; s < totalPixels; s++) {
+                const pointH = curvePoints[s];
+                const pointG = curvePoints[(s + shiftL) % totalPixels];
+                const idxH = pointH[0] + pointH[1] * w;
+                const idxG = pointG[0] + pointG[1] * w;
+                dst32[idxH] = src32[idxG];
+              }
+            }
+
+            ctx.putImageData(outData, 0, 0);
+            canvas.toBlob((resultBlob) => {
+              if (resultBlob) {
+                currentBlob = resultBlob;
+                setDisplayImage(URL.createObjectURL(resultBlob));
+              }
+              setLoadingState(false);
+            }, "image/jpeg", 0.95);
+
+          } catch (err) {
+            console.error("Image processing error:", err);
+            alert("图片处理失败，请重试或更换图片");
+            setLoadingState(false);
+          }
+        };
+
+        img.onerror = () => {
+          URL.revokeObjectURL(objectUrl);
+          alert("图片加载失败");
+          setLoadingState(false);
+        };
+
+        img.src = objectUrl;
+      }, 30);
+    });
+  }
+
+  // Load File Input & Check Size Constraints
+  function handleFileSelection(file) {
+    if (!file) return;
+
+    setLoadingState(true);
+
+    const initialUrl = URL.createObjectURL(file);
+    const img = new Image();
+
+    img.onload = () => {
+      const nw = img.naturalWidth || img.width;
+      const nh = img.naturalHeight || img.height;
+      const pixelCount = nw * nh;
+
+      // Check if resizing is needed
+      if (!(pixelCount > MAX_PIXELS || nw > MAX_WIDTH || nh > MAX_HEIGHT)) {
+        currentBlob = file;
+        originalBlob = file;
+        setDisplayImage(initialUrl);
+        setLoadingState(false);
+        return;
+      }
+
+      // Rescale large image within safe boundary
+      const scale = Math.min(Math.sqrt(MAX_PIXELS / pixelCount), MAX_WIDTH / nw, MAX_HEIGHT / nh, 1);
+      const targetW = Math.max(1, Math.round(nw * scale));
+      const targetH = Math.max(1, Math.round(nh * scale));
+
+      const canvas = document.createElement("canvas");
+      canvas.width = targetW;
+      canvas.height = targetH;
+      const ctx = canvas.getContext("2d");
+
+      if (ctx) {
+        ctx.drawImage(img, 0, 0, targetW, targetH);
+        canvas.toBlob((resizedBlob) => {
+          if (resizedBlob) {
+            currentBlob = resizedBlob;
+            originalBlob = resizedBlob;
+            URL.revokeObjectURL(initialUrl);
+            setDisplayImage(URL.createObjectURL(resizedBlob));
+          }
+          setLoadingState(false);
+        }, "image/jpeg", 0.95);
+      } else {
+        setLoadingState(false);
+      }
+    };
+
+    img.onerror = () => {
+      URL.revokeObjectURL(initialUrl);
+      alert("图片加载失败");
+      setLoadingState(false);
+    };
+
+    img.src = initialUrl;
+  }
+
+  // Event Listeners
+  if (fileInput) {
+    fileInput.addEventListener("change", () => {
+      if (fileInput.files && fileInput.files.length > 0) {
+        handleFileSelection(fileInput.files[0]);
+      }
+    });
+  }
+
+  if (uploadBtn) uploadBtn.addEventListener("click", () => fileInput && fileInput.click());
+  if (placeholder) placeholder.addEventListener("click", () => fileInput && fileInput.click());
+
+  // Global & Container Drag & Drop Support (Allows replacing image at any time)
+  const dropCard = document.querySelector(".cute-card") || document.body;
+
+  ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+    window.addEventListener(eventName, (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    }, false);
+  });
+
+  ['dragenter', 'dragover'].forEach(eventName => {
+    if (dropCard) {
+      dropCard.addEventListener(eventName, () => dropCard.classList.add("drag-over"), false);
+    }
+  });
+
+  ['dragleave', 'drop'].forEach(eventName => {
+    if (dropCard) {
+      dropCard.addEventListener(eventName, () => dropCard.classList.remove("drag-over"), false);
+    }
+  });
+
+  window.addEventListener('drop', (e) => {
+    const dt = e.dataTransfer;
+    if (dt && dt.files && dt.files.length > 0) {
+      const file = dt.files[0];
+      if (file.type && file.type.startsWith("image/")) {
+        handleFileSelection(file);
+      }
+    }
+  });
+
+  // Clipboard Paste (Ctrl + V) Support
+  window.addEventListener("paste", (e) => {
+    const items = e.clipboardData && e.clipboardData.items;
+    if (!items) return;
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.type && item.type.startsWith("image/")) {
+        const file = item.getAsFile();
+        if (file) {
+          e.preventDefault();
+          handleFileSelection(file);
+          break;
+        }
+      }
+    }
+  });
+
+  if (encBtn) encBtn.addEventListener("click", () => processImage("enc"));
+  if (decBtn) decBtn.addEventListener("click", () => processImage("dec"));
+
+  if (restoreBtn) {
+    restoreBtn.addEventListener("click", () => {
+      if (originalBlob) {
+        currentBlob = originalBlob;
+        setDisplayImage(URL.createObjectURL(originalBlob));
+      } else if (!currentBlob) {
+        alert("请先上传图片");
+      }
+    });
+  }
+
+  // Dark / Light Theme Logic
+  function getPreferredTheme() {
+    const saved = localStorage.getItem("theme");
+    if (saved) return saved;
+    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  }
+
+  function applyTheme(theme) {
+    const htmlEl = document.documentElement;
+    if (theme === "dark") {
+      htmlEl.classList.add("dark");
+      if (iconSun) iconSun.classList.remove("hidden");
+      if (iconMoon) iconMoon.classList.add("hidden");
+    } else {
+      htmlEl.classList.remove("dark");
+      if (iconSun) iconSun.classList.add("hidden");
+      if (iconMoon) iconMoon.classList.remove("hidden");
+    }
+  }
+
+  applyTheme(getPreferredTheme());
+
+  if (themeToggle) {
+    themeToggle.addEventListener("click", () => {
+      const currentTheme = document.documentElement.classList.contains("dark") ? "dark" : "light";
+      const newTheme = currentTheme === "dark" ? "light" : "dark";
+      localStorage.setItem("theme", newTheme);
+      applyTheme(newTheme);
+    });
+  }
+});
+  </script>
+</body>
+</html>
