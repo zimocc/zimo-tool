@@ -145,6 +145,37 @@ body {
   background-color: color-mix(in srgb, var(--card-bg) 85%, var(--btn-action) 15%) !important;
 }
 
+/* Tabs */
+.xfq-tabs {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.xfq-tab-item {
+  flex: 1;
+  background-color: var(--card-bg);
+  border: 4px solid var(--border-color);
+  border-radius: 16px;
+  padding: 12px;
+  text-align: center;
+  font-weight: 900;
+  font-size: 1.1rem;
+  color: var(--text-main);
+  cursor: pointer;
+  box-shadow: 0 6px var(--border-color);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.2s;
+  user-select: none;
+}
+.xfq-tab-item:active {
+  transform: translateY(4px);
+  box-shadow: 0 2px var(--border-color);
+}
+.xfq-tab-item.active {
+  background-color: var(--btn-action);
+  color: #ffffff;
+  text-shadow: 1px 1px var(--border-color);
+}
+
 /* Alert Tip */
 .xfq-tip {
   background-color: #fffbdf;
@@ -528,6 +559,7 @@ footer {
   padding: 16px 0;
 }
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.0/build/qrcode.min.js"></script>
 </head>
 <body>
 
@@ -562,6 +594,14 @@ footer {
 
   <!-- Main Functional Card -->
   <main class="main-app-container">
+    
+    <!-- Navigation Tabs -->
+    <div class="xfq-tabs">
+      <div class="xfq-tab-item active" id="tab-btn-scan">🔍 扫码识别</div>
+      <div class="xfq-tab-item" id="tab-btn-gen">⚡ 生成二维码</div>
+    </div>
+
+    <!-- Scan Card -->
     <div class="cute-card" id="drop-card">
 
       <!-- Alert Tip -->
@@ -644,6 +684,24 @@ footer {
         <div class="history-list" id="history-list"></div>
       </div>
 
+    </div>
+
+    <!-- QR Code Generator Card -->
+    <div class="cute-card" id="qr-generator-card" style="display: none;">
+      <h2 class="section-title" style="margin-bottom: 16px; font-size: 1.3rem;">⚡ 二维码生成器</h2>
+      
+      <textarea id="qr-input" placeholder="请输入任意文本或 URL 网址..." rows="3" style="width: 100%; border: 3px solid var(--border-color); border-radius: 12px; padding: 12px; font-family: inherit; font-size: 14px; background: color-mix(in srgb, var(--card-bg) 95%, var(--border-color) 5%); color: var(--text-main); outline: none; resize: vertical; margin-bottom: 12px; transition: border-color 0.2s;"></textarea>
+
+      <div class="upload-area-wrapper" style="min-height: 200px; display: flex; align-items: center; justify-content: center; background: color-mix(in srgb, var(--card-bg) 90%, var(--btn-primary) 10%); border: 3px dashed var(--border-color); border-radius: 16px; margin-bottom: 16px; padding: 10px;">
+        <canvas id="qr-canvas" style="max-width: 100%; max-height: 250px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1);"></canvas>
+      </div>
+
+      <div class="xfq-controls" style="margin-top: 0;">
+        <button id="qr-btn-dl" class="cute-btn btn-scan">下载二维码</button>
+        <button id="qr-btn-copy-img" class="cute-btn btn-upload">复制图片</button>
+        <button id="qr-btn-copy-txt" class="cute-btn btn-copy">复制文本</button>
+        <button id="qr-btn-clear" class="cute-btn btn-clear">重置</button>
+      </div>
     </div>
   </main>
 
@@ -11200,6 +11258,147 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  // --- QR Code Generator Logic ---
+  const qrInput = document.getElementById('qr-input');
+  const qrCanvas = document.getElementById('qr-canvas');
+  const btnQrDl = document.getElementById('qr-btn-dl');
+  const btnQrCopyImg = document.getElementById('qr-btn-copy-img');
+  const btnQrCopyTxt = document.getElementById('qr-btn-copy-txt');
+  const btnQrClear = document.getElementById('qr-btn-clear');
+
+  function renderQR() {
+    const text = qrInput.value.trim();
+    const ctx = qrCanvas.getContext('2d');
+    if (!text) {
+      ctx.clearRect(0, 0, qrCanvas.width, qrCanvas.height);
+      qrCanvas.width = 0;
+      qrCanvas.height = 0;
+      return;
+    }
+    
+    const isDark = document.documentElement.classList.contains('dark');
+    if (window.QRCode && window.QRCode.toCanvas) {
+      window.QRCode.toCanvas(qrCanvas, text, {
+        width: 240,
+        margin: 4,
+        color: {
+          dark: isDark ? '#000000' : '#3d405b',
+          light: '#ffffff'
+        }
+      }, function(error) {
+        if (error) console.error(error);
+      });
+    } else {
+      console.warn("QR Code library not loaded");
+    }
+  }
+
+  qrInput.addEventListener('input', renderQR);
+
+  // Overwrite theme toggle to re-render QR
+  const themeToggleBtn = document.getElementById("theme-toggle");
+  if (themeToggleBtn) {
+    themeToggleBtn.addEventListener("click", () => {
+      setTimeout(renderQR, 50); 
+    });
+  }
+
+  btnQrClear.addEventListener('click', () => {
+    qrInput.value = '';
+    renderQR();
+  });
+
+  btnQrDl.addEventListener('click', () => {
+    const text = qrInput.value.trim();
+    if (!text) {
+      showToast('请先输入文本或 URL');
+      return;
+    }
+    const tempCanvas = document.createElement('canvas');
+    if (window.QRCode && window.QRCode.toCanvas) {
+      window.QRCode.toCanvas(tempCanvas, text, {
+        width: 400,
+        margin: 4,
+        color: { dark: '#000000', light: '#ffffff' }
+      }, (err) => {
+        if (!err) {
+          const url = tempCanvas.toDataURL('image/png');
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `qrcode_${Date.now()}.png`;
+          a.click();
+          showToast('二维码已下载！');
+        }
+      });
+    }
+  });
+
+  btnQrCopyImg.addEventListener('click', () => {
+    const text = qrInput.value.trim();
+    if (!text) {
+      showToast('请先输入文本或 URL');
+      return;
+    }
+    const tempCanvas = document.createElement('canvas');
+    if (window.QRCode && window.QRCode.toCanvas) {
+      window.QRCode.toCanvas(tempCanvas, text, {
+        width: 400,
+        margin: 4,
+        color: { dark: '#000000', light: '#ffffff' }
+      }, (err) => {
+        if (!err) {
+          tempCanvas.toBlob((blob) => {
+            if (blob) {
+              try {
+                const item = new ClipboardItem({ 'image/png': blob });
+                navigator.clipboard.write([item]).then(() => {
+                  showToast('二维码图片已成功复制到剪贴板！');
+                }).catch(err => {
+                  showToast('复制图片受浏览器限制');
+                });
+              } catch (err) {
+                showToast('当前浏览器不支持图片剪贴板');
+              }
+            }
+          });
+        }
+      });
+    }
+  });
+
+  btnQrCopyTxt.addEventListener('click', () => {
+    const text = qrInput.value.trim();
+    if (text) {
+      navigator.clipboard.writeText(text).then(() => {
+        showToast('文本已成功复制！');
+      }).catch(err => {
+        showToast('复制文本失败');
+      });
+    }
+  });
+
+  // --- Tab Switching Logic ---
+  const tabBtnScan = document.getElementById('tab-btn-scan');
+  const tabBtnGen = document.getElementById('tab-btn-gen');
+  const dropCardElement = document.getElementById('drop-card');
+  const qrGeneratorCard = document.getElementById('qr-generator-card');
+  
+  if (tabBtnScan && tabBtnGen) {
+    tabBtnScan.addEventListener('click', () => {
+      tabBtnScan.classList.add('active');
+      tabBtnGen.classList.remove('active');
+      dropCardElement.style.display = 'block';
+      qrGeneratorCard.style.display = 'none';
+    });
+    
+    tabBtnGen.addEventListener('click', () => {
+      tabBtnGen.classList.add('active');
+      tabBtnScan.classList.remove('active');
+      qrGeneratorCard.style.display = 'block';
+      dropCardElement.style.display = 'none';
+      renderQR();
+    });
+  }
 });
   </script>
 </body>
