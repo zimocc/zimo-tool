@@ -1660,7 +1660,7 @@
             <span>${item.time}</span>
           </div>
           <div class="zimo-history-content">
-            <img class="zimo-history-qr-img" src="${qrImgSrc}" alt="二维码" id="hist-img-${index}" title="点击下载图片" />
+            <img class="zimo-history-qr-img" src="${qrImgSrc}" alt="二维码" id="hist-img-${index}" title="点击复制二维码" />
             <div class="zimo-history-details">
               <div class="zimo-history-text">${escapedText}</div>
               <div class="zimo-history-actions">
@@ -1698,7 +1698,7 @@
         });
 
         shadow.getElementById(`hist-img-${index}`).addEventListener('click', () => {
-          downloadQRImage(qrImgSrc, `qrcode_history_${Date.now()}.png`);
+          copyQRImageToClipboard(qrImgSrc);
         });
       }
 

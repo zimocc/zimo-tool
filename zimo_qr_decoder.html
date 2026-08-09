@@ -11494,7 +11494,7 @@ document.addEventListener("DOMContentLoaded", () => {
           <span>${item.time}</span>
         </div>
         <div class="gen-history-content">
-          ${item.imageData ? `<img class="gen-history-qr-img" src="${item.imageData}" alt="二维码" id="gen-hist-img-${index}" title="点击下载图片" />` : ''}
+          ${item.imageData ? `<img class="gen-history-qr-img" src="${item.imageData}" alt="二维码" id="gen-hist-img-${index}" title="点击复制二维码" />` : ''}
           <div class="gen-history-details">
             <div class="gen-history-text">${escapedText}</div>
             <div class="gen-history-actions">
@@ -11517,7 +11517,7 @@ document.addEventListener("DOMContentLoaded", () => {
           copyQRImageToClipboard(item.imageData);
         });
         document.getElementById(`gen-hist-img-${index}`).addEventListener('click', () => {
-          downloadQRImage(item.imageData, `qrcode_gen_${Date.now()}.png`);
+          copyQRImageToClipboard(item.imageData);
         });
       }
 
