@@ -4,6 +4,7 @@
 // @version      1.0.0
 // @description  全网通用的网页悬浮小窗二维码识别与生成工具，纯前端离线安全，支持拖拽、剪贴板粘贴、右键图片快捷解析与实时生成。
 // @author       紫陌 (zimocc)
+// @icon         https://tool.zimo.cc/favicon.svg
 // @match        *://*/*
 // @grant        GM_registerMenuCommand
 // @grant        GM_setClipboard
@@ -507,7 +508,7 @@
 
   wrapper.innerHTML = `
     <!-- Floating Launcher -->
-    <button class="zimo-float-btn" id="zimo-float-btn" title="打开二维码工具箱">
+    <button class="zimo-float-btn" id="zimo-float-btn" title="打开/收起二维码工具箱 (Ctrl+Q)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
         <rect x="3" y="3" width="7" height="7"></rect>
         <rect x="14" y="3" width="7" height="7"></rect>
@@ -710,10 +711,28 @@
         genInput.value = window.location.href;
         triggerQRGeneration();
       }
+      // Auto focus on active input element
+      setTimeout(() => {
+        const activeTab = shadow.querySelector('.zimo-tab-item.active')?.getAttribute('data-tab');
+        if (activeTab === 'gen') {
+          genInput.focus();
+          genInput.select();
+        } else if (activeTab === 'scan') {
+          scanResultInput.focus();
+        }
+      }, 50);
     } else {
       win.classList.add('hidden');
     }
   }
+
+  // Global Keyboard Shortcut: Ctrl + Q (or Cmd + Q)
+  window.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key && e.key.toLowerCase() === 'q') {
+      e.preventDefault();
+      toggleWindow();
+    }
+  });
 
   // Floating Launcher Button Draggable & Position Persistence
   let isBtnDragging = false;
