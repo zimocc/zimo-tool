@@ -401,36 +401,70 @@
     .zimo-history-list {
       display: flex;
       flex-direction: column;
-      gap: 8px;
-      max-height: 280px;
+      gap: 10px;
+      max-height: 320px;
       overflow-y: auto;
+      padding-right: 2px;
     }
     .zimo-history-item {
       background: var(--bg-main);
       border: 2px solid var(--border-color);
       border-radius: 10px;
-      padding: 8px 10px;
+      padding: 10px;
       display: flex;
       flex-direction: column;
-      gap: 4px;
+      gap: 8px;
     }
     .zimo-history-meta {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      font-size: 10px;
+      font-size: 10.5px;
       color: var(--text-muted);
+      font-weight: 700;
+    }
+    .zimo-history-content {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+    }
+    .zimo-history-qr-img {
+      width: 64px;
+      height: 64px;
+      min-width: 64px;
+      min-height: 64px;
+      object-fit: contain;
+      background: #ffffff;
+      border: 2px solid var(--border-color);
+      border-radius: 8px;
+      padding: 2px;
+      box-shadow: 0 2px 0 var(--border-color);
+      cursor: pointer;
+      transition: transform 0.15s ease;
+    }
+    .zimo-history-qr-img:hover {
+      transform: scale(1.05);
+    }
+    .zimo-history-details {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-width: 0;
     }
     .zimo-history-text {
       font-size: 11.5px;
       font-weight: 600;
       word-break: break-all;
       user-select: text;
+      max-height: 52px;
+      overflow-y: auto;
     }
     .zimo-history-actions {
       display: flex;
       gap: 4px;
       justify-content: flex-end;
+      flex-wrap: wrap;
     }
 
     /* Toast Notification */
@@ -1372,8 +1406,79 @@
     return null;
   }
 
+  // Helper Utilities for Image and Clipboard Actions
+  function dataURLToBlob(dataURL) {
+    try {
+      const parts = dataURL.split(';base64,');
+      const contentType = (parts[0].match(/:(.*?);/) || [])[1] || 'image/png';
+      const raw = window.atob(parts[1]);
+      const rawLength = raw.length;
+      const uInt8Array = new Uint8Array(rawLength);
+      for (let i = 0; i < rawLength; ++i) {
+        uInt8Array[i] = raw.charCodeAt(i);
+      }
+      return new Blob([uInt8Array], { type: contentType });
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function generateQRDataURL(text) {
+    if (!text) return null;
+    try {
+      const tempCanvas = document.createElement('canvas');
+      QRCodeEngine.drawCanvas(tempCanvas, text, {
+        width: 240,
+        margin: 4,
+        color: { dark: '#000000', light: '#ffffff' }
+      });
+      return tempCanvas.toDataURL('image/png');
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function downloadQRImage(dataUrlOrCanvas, filename) {
+    let url = dataUrlOrCanvas;
+    if (dataUrlOrCanvas instanceof HTMLCanvasElement) {
+      url = dataUrlOrCanvas.toDataURL('image/png');
+    }
+    if (!url) {
+      showToast('获取图片数据失败');
+      return;
+    }
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename || `qrcode_${Date.now()}.png`;
+    a.click();
+    showToast('二维码已开始下载！');
+  }
+
+  async function copyQRImageToClipboard(dataUrlOrCanvas) {
+    let blob = null;
+    if (dataUrlOrCanvas instanceof HTMLCanvasElement) {
+      blob = await new Promise(resolve => dataUrlOrCanvas.toBlob(resolve, 'image/png'));
+    } else if (typeof dataUrlOrCanvas === 'string') {
+      blob = dataURLToBlob(dataUrlOrCanvas);
+    }
+    if (!blob) {
+      showToast('生成图片数据失败');
+      return;
+    }
+    try {
+      const item = new ClipboardItem({ 'image/png': blob });
+      await navigator.clipboard.write([item]);
+      showToast('二维码图片已成功复制到剪贴板！');
+    } catch (err) {
+      console.error('Copy image error:', err);
+      showToast('复制图片受浏览器限制');
+    }
+  }
+
   // QR Code Generation Logic
-  async function triggerQRGeneration() {
+  let historyDebounceTimer = null;
+
+  async function triggerQRGeneration(isImmediate = false) {
     const text = genInput.value.trim();
     const ctx = genCanvas.getContext('2d');
     if (!text) {
@@ -1397,7 +1502,6 @@
           }, (err) => err ? reject(err) : resolve());
         });
       } else {
-        // Pure JS fallback
         QRCodeEngine.drawCanvas(genCanvas, text, {
           width: 180,
           margin: 4,
@@ -1407,9 +1511,8 @@
           }
         });
       }
-      addHistory('gen', text);
+      saveGenHistory(text, isImmediate);
     } catch (err) {
-      // Inline Fallback Engine
       try {
         QRCodeEngine.drawCanvas(genCanvas, text, {
           width: 180,
@@ -1419,7 +1522,7 @@
             light: '#ffffff'
           }
         });
-        addHistory('gen', text);
+        saveGenHistory(text, isImmediate);
       } catch (fallbackErr) {
         console.error('QR Engine error:', fallbackErr);
         showToast('生成二维码失败');
@@ -1427,11 +1530,28 @@
     }
   }
 
-  genInput.addEventListener('input', triggerQRGeneration);
+  function saveGenHistory(text, isImmediate = false) {
+    clearTimeout(historyDebounceTimer);
+    const doSave = () => {
+      try {
+        const dataUrl = genCanvas.toDataURL('image/png');
+        addHistory('gen', text, dataUrl);
+      } catch (e) {
+        addHistory('gen', text, null);
+      }
+    };
+    if (isImmediate) {
+      doSave();
+    } else {
+      historyDebounceTimer = setTimeout(doSave, 2000);
+    }
+  }
+
+  genInput.addEventListener('input', () => triggerQRGeneration(false));
 
   btnGenCurrUrl.addEventListener('click', () => {
     genInput.value = window.location.href;
-    triggerQRGeneration();
+    triggerQRGeneration(true);
     showToast('已填入当前页面 URL');
   });
 
@@ -1439,113 +1559,29 @@
     const sel = window.getSelection().toString().trim();
     if (sel) {
       genInput.value = sel;
-      triggerQRGeneration();
+      triggerQRGeneration(true);
       showToast('已填入网页选中文本');
     } else {
       showToast('当前未选中文本');
     }
   });
 
-  btnDlQr.addEventListener('click', async () => {
+  btnDlQr.addEventListener('click', () => {
     const text = genInput.value.trim();
     if (!text) {
       showToast('请先输入文本或 URL');
       return;
     }
-
-    const tempCanvas = document.createElement('canvas');
-    const qrLib = getQRCodeLib();
-
-    try {
-      if (qrLib && qrLib.toCanvas) {
-        await new Promise((resolve, reject) => {
-          qrLib.toCanvas(tempCanvas, text, {
-            width: 320,
-            margin: 4,
-            color: { dark: '#000000', light: '#ffffff' }
-          }, (err) => err ? reject(err) : resolve());
-        });
-      } else {
-        QRCodeEngine.drawCanvas(tempCanvas, text, {
-          width: 320,
-          margin: 4,
-          color: { dark: '#000000', light: '#ffffff' }
-        });
-      }
-
-      const url = tempCanvas.toDataURL('image/png');
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `qrcode_${Date.now()}.png`;
-      a.click();
-      showToast('二维码已开始下载！');
-    } catch (err) {
-      try {
-        QRCodeEngine.drawCanvas(tempCanvas, text, {
-          width: 320,
-          margin: 4,
-          color: { dark: '#000000', light: '#ffffff' }
-        });
-        const url = tempCanvas.toDataURL('image/png');
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `qrcode_${Date.now()}.png`;
-        a.click();
-        showToast('二维码已开始下载！');
-      } catch (e) {
-        console.error('Download error:', e);
-        showToast('下载生成失败');
-      }
-    }
+    downloadQRImage(genCanvas, `qrcode_${Date.now()}.png`);
   });
 
-  btnCopyQrImg.addEventListener('click', async () => {
+  btnCopyQrImg.addEventListener('click', () => {
     const text = genInput.value.trim();
     if (!text) {
       showToast('请先输入文本或 URL');
       return;
     }
-
-    const tempCanvas = document.createElement('canvas');
-    const qrLib = getQRCodeLib();
-
-    try {
-      if (qrLib && qrLib.toCanvas) {
-        await new Promise((resolve, reject) => {
-          qrLib.toCanvas(tempCanvas, text, {
-            width: 320,
-            margin: 4,
-            color: { dark: '#000000', light: '#ffffff' }
-          }, (err) => err ? reject(err) : resolve());
-        });
-      } else {
-        QRCodeEngine.drawCanvas(tempCanvas, text, {
-          width: 320,
-          margin: 4,
-          color: { dark: '#000000', light: '#ffffff' }
-        });
-      }
-
-      tempCanvas.toBlob((blob) => {
-        if (!blob) {
-          showToast('生成图片数据失败');
-          return;
-        }
-        try {
-          const item = new ClipboardItem({ 'image/png': blob });
-          navigator.clipboard.write([item]).then(() => {
-            showToast('二维码图片已成功复制到剪贴板！');
-          }).catch(err => {
-            console.error('Copy image error:', err);
-            showToast('复制图片受浏览器限制');
-          });
-        } catch (err) {
-          showToast('当前浏览器不支持图片剪贴板');
-        }
-      });
-    } catch (err) {
-      showToast('生成图片失败');
-    }
+    copyQRImageToClipboard(genCanvas);
   });
 
   btnCopyGenText.addEventListener('click', () => {
@@ -1557,10 +1593,17 @@
   });
 
   // History Manager
-  function addHistory(type, text) {
+  function addHistory(type, text, imageData = null) {
     if (!text) return;
     const timeStr = new Date().toLocaleTimeString();
-    historyData.unshift({ type, text, time: timeStr });
+
+    // Deduplicate existing identical text entry
+    const existingIndex = historyData.findIndex(item => item.type === type && item.text === text);
+    if (existingIndex !== -1) {
+      historyData.splice(existingIndex, 1);
+    }
+
+    historyData.unshift({ type, text, time: timeStr, imageData });
     if (historyData.length > 20) historyData.pop();
     GM_setValue('zimo_qr_history', historyData);
   }
@@ -1578,24 +1621,71 @@
 
       const typeTag = item.type === 'scan' ? '🔍 识别' : '⚡ 生成';
       const isUrl = /^https?:\/\/[^\s]+$/i.test(item.text.trim());
+      const hasImage = item.type === 'gen' || !!item.imageData;
 
-      el.innerHTML = `
-        <div class="zimo-history-meta">
-          <span>${typeTag}</span>
-          <span>${item.time}</span>
-        </div>
-        <div class="zimo-history-text">${item.text}</div>
-        <div class="zimo-history-actions">
-          <button class="zimo-btn" style="padding:2px 6px; font-size:10px;" id="hist-copy-${index}">复制</button>
-          ${isUrl ? `<button class="zimo-btn zimo-btn-secondary" style="padding:2px 6px; font-size:10px;" id="hist-open-${index}">打开</button>` : ''}
-        </div>
-      `;
+      let qrImgSrc = item.imageData;
+      if (!qrImgSrc && item.type === 'gen') {
+        qrImgSrc = generateQRDataURL(item.text);
+      }
+
+      const escapedText = item.text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+
+      if (hasImage && qrImgSrc) {
+        el.innerHTML = `
+          <div class="zimo-history-meta">
+            <span>${typeTag}</span>
+            <span>${item.time}</span>
+          </div>
+          <div class="zimo-history-content">
+            <img class="zimo-history-qr-img" src="${qrImgSrc}" alt="二维码" id="hist-img-${index}" title="点击下载图片" />
+            <div class="zimo-history-details">
+              <div class="zimo-history-text">${escapedText}</div>
+              <div class="zimo-history-actions">
+                <button class="zimo-btn zimo-btn-action" style="padding:2px 6px; font-size:10px;" id="hist-dl-img-${index}">下载图片</button>
+                <button class="zimo-btn zimo-btn-secondary" style="padding:2px 6px; font-size:10px;" id="hist-copy-img-${index}">复制图片</button>
+                <button class="zimo-btn" style="padding:2px 6px; font-size:10px;" id="hist-copy-text-${index}">复制文本</button>
+                ${isUrl ? `<button class="zimo-btn" style="padding:2px 6px; font-size:10px; background:var(--btn-warning); color:#2d3436;" id="hist-open-${index}">打开</button>` : ''}
+              </div>
+            </div>
+          </div>
+        `;
+      } else {
+        el.innerHTML = `
+          <div class="zimo-history-meta">
+            <span>${typeTag}</span>
+            <span>${item.time}</span>
+          </div>
+          <div class="zimo-history-text">${escapedText}</div>
+          <div class="zimo-history-actions">
+            <button class="zimo-btn" style="padding:2px 6px; font-size:10px;" id="hist-copy-text-${index}">复制文本</button>
+            ${isUrl ? `<button class="zimo-btn zimo-btn-secondary" style="padding:2px 6px; font-size:10px;" id="hist-open-${index}">打开</button>` : ''}
+          </div>
+        `;
+      }
 
       historyListEl.appendChild(el);
 
-      shadow.getElementById(`hist-copy-${index}`).addEventListener('click', () => {
+      if (hasImage && qrImgSrc) {
+        shadow.getElementById(`hist-dl-img-${index}`).addEventListener('click', () => {
+          downloadQRImage(qrImgSrc, `qrcode_history_${Date.now()}.png`);
+        });
+
+        shadow.getElementById(`hist-copy-img-${index}`).addEventListener('click', () => {
+          copyQRImageToClipboard(qrImgSrc);
+        });
+
+        shadow.getElementById(`hist-img-${index}`).addEventListener('click', () => {
+          downloadQRImage(qrImgSrc, `qrcode_history_${Date.now()}.png`);
+        });
+      }
+
+      shadow.getElementById(`hist-copy-text-${index}`).addEventListener('click', () => {
         GM_setClipboard(item.text);
-        showToast('已复制到剪贴板');
+        showToast('文本已成功复制！');
       });
 
       if (isUrl) {
